@@ -32,6 +32,60 @@ def test_unscored_stages_are_excluded():
     assert "Movement time" not in STAGE_MAP
 
 
+def test_subject_ids_match_mne_manifest():
+    """Subject id is parsed from the filename; if that parse is wrong the
+    subject-wise split silently leaks a sleeper across train and test and every
+    reported number is inflated. Checked against MNE's own manifest.
+
+    Skipped when MNE is not installed.
+    """
+    import re
+
+    try:
+        import mne.datasets.sleep_physionet as sp
+        import pandas as pd
+    except ImportError:
+        return
+
+    csv = os.path.join(os.path.dirname(sp.__file__), "age_records.csv")
+    if not os.path.exists(csv):
+        return
+
+    df = pd.read_csv(csv)
+    psg = df[df["record type"] == "PSG"]
+    assert len(psg) == 153
+
+    for _, r in psg.iterrows():
+        rec_id = r["fname"][:6]
+        parsed = int(re.search(r"SC4(\d{2})", rec_id).group(1))
+        assert parsed == r["subject"], (r["fname"], parsed, r["subject"])
+
+    parsed_ids = {int(re.search(r"SC4(\d{2})", f[:6]).group(1)) for f in psg["fname"]}
+    assert len(parsed_ids) == psg["subject"].nunique() == 78
+
+
+def test_split_is_disjoint_by_subject():
+    """No subject may appear in more than one split."""
+    import tempfile
+
+    from utils.dataset import split_by_subject
+
+    with tempfile.TemporaryDirectory() as d:
+        for subj in range(20):
+            for night in (1, 2):
+                np.savez(os.path.join(d, f"SC4{subj:02d}{night}.npz"),
+                         x=np.zeros((4, 3000), np.float32), y=np.arange(4) % 5,
+                         subject=subj, rec_id=f"SC4{subj:02d}{night}")
+        tr, va, te, counts = split_by_subject(d, seed=0)
+
+        subj_of = lambda fs: {int(np.load(f, allow_pickle=True)["subject"]) for f in fs}
+        s_tr, s_va, s_te = subj_of(tr), subj_of(va), subj_of(te)
+        assert not (s_tr & s_va) and not (s_tr & s_te) and not (s_va & s_te)
+        assert len(s_tr | s_va | s_te) == 20
+        assert len(tr) + len(va) + len(te) == 40
+        assert counts == (len(s_tr), len(s_va), len(s_te))
+
+
 def test_metrics_detect_failure():
     """A metric that cannot fail is worthless - pin the degenerate cases."""
     rng = np.random.default_rng(0)

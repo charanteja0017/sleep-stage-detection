@@ -137,12 +137,17 @@ src/
 python3 tests/test_pipeline.py     # or: python3 -m pytest tests/ -q
 ```
 
-Six regression tests, each pinned to a bug that actually occurred and each
-verified to fail against the original code — a test that cannot fail is not a
-test. They cover the stage-3/4 event-code collision, exclusion of unscored
-annotations, float32 preservation through normalisation, and three metric
-properties including that constant-majority prediction scores exactly 0.200
-balanced accuracy while plain accuracy reads a flattering 0.42.
+Eight regression tests, each verified to fail against the code it guards — a
+test that cannot fail is not a test. They cover:
+
+- the stage-3/4 event-code collision that rejected every real recording
+- exclusion of unscored `Sleep stage ?` annotations
+- float32 preservation through normalisation (float64 breaks MPS)
+- subject ids parsed from filenames matching MNE's manifest across all 153
+  recordings, and splits being disjoint by subject — the two properties that,
+  if broken, silently inflate every number in this README
+- three metric properties, including that constant-majority prediction scores
+  exactly 0.200 balanced accuracy while plain accuracy reads a flattering 0.42
 
 ## Metrics
 
