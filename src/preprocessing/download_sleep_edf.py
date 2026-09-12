@@ -15,7 +15,13 @@ import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-BASE = "https://physionet.org/files/sleep-edfx/1.0.0/sleep-cassette"
+# PhysioNet's own host serves ~40 kB/s per connection. Its AWS Open Data mirror
+# carries the identical files roughly 30x faster, so try that first and fall
+# back. SHA1s from the manifest verify whichever one answers.
+MIRRORS = (
+    "https://physionet-open.s3.amazonaws.com/sleep-edfx/1.0.0/sleep-cassette",
+    "https://physionet.org/files/sleep-edfx/1.0.0/sleep-cassette",
+)
 _print_lock = threading.Lock()
 
 
@@ -35,37 +41,37 @@ def sha1(path, chunk=1 << 20):
     return h.hexdigest()
 
 
-def fetch(fname, expected_sha, out_dir, retries=3):
+def fetch(fname, expected_sha, out_dir, retries=2):
     dest = os.path.join(out_dir, fname)
     if os.path.exists(dest) and sha1(dest) == expected_sha:
         return fname, "cached", os.path.getsize(dest)
 
-    tmp = dest + ".part"
-    for attempt in range(1, retries + 1):
-        try:
-            req = urllib.request.Request(f"{BASE}/{fname}",
-                                         headers={"User-Agent": "sleep-stage-detection/1.0"})
-            with urllib.request.urlopen(req, timeout=120) as r, open(tmp, "wb") as f:
-                while True:
-                    block = r.read(1 << 16)
-                    if not block:
-                        break
-                    f.write(block)
-            got = sha1(tmp)
-            if got != expected_sha:
-                os.remove(tmp)
-                if attempt == retries:
-                    return fname, f"sha1 mismatch ({got[:8]} != {expected_sha[:8]})", 0
-                continue
-            os.replace(tmp, dest)
-            return fname, "ok", os.path.getsize(dest)
-        except (urllib.error.URLError, TimeoutError, OSError) as e:
-            if os.path.exists(tmp):
-                os.remove(tmp)
-            if attempt == retries:
-                return fname, f"failed: {type(e).__name__} {e}", 0
-            time.sleep(2 * attempt)
-    return fname, "failed", 0
+    tmp = f"{dest}.part"
+    last = "no attempt"
+    for base in MIRRORS:
+        for attempt in range(1, retries + 1):
+            try:
+                req = urllib.request.Request(
+                    f"{base}/{fname}", headers={"User-Agent": "sleep-stage-detection/1.0"})
+                with urllib.request.urlopen(req, timeout=180) as r, open(tmp, "wb") as f:
+                    while True:
+                        block = r.read(1 << 16)
+                        if not block:
+                            break
+                        f.write(block)
+                got = sha1(tmp)
+                if got != expected_sha:
+                    os.remove(tmp)
+                    last = f"sha1 mismatch ({got[:8]} != {expected_sha[:8]})"
+                    continue
+                os.replace(tmp, dest)
+                return fname, "ok", os.path.getsize(dest)
+            except (urllib.error.URLError, TimeoutError, OSError) as e:
+                if os.path.exists(tmp):
+                    os.remove(tmp)
+                last = f"{type(e).__name__}: {e}"
+                time.sleep(attempt)
+    return fname, f"failed ({last})", 0
 
 
 def main():

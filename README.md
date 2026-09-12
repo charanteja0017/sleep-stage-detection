@@ -74,12 +74,19 @@ python3 src/preprocessing/prepare_sleep_edf.py --raw-dir data/raw --out-dir data
 python3 src/train.py --epochs 40 --batch-size 128
 ```
 
-`download_sleep_edf.py` exists because PhysioNet serves a single connection at
-roughly 40 kB/s, which puts the full set at over a day via MNE's sequential
-fetcher. It pulls several files concurrently (measured ~4x faster at 6-8
-streams), takes filenames and SHA1s from the manifest bundled with MNE, verifies
-every checksum, and skips files already present — so an interrupted run resumes.
-Drop `--subjects` to fetch all 78.
+`download_sleep_edf.py` exists because fetching this set from physionet.org is
+impractically slow — measured at ~40 kB/s per connection, which puts the full
+7 GB at over a day through MNE's sequential fetcher.
+
+It prefers PhysioNet's **AWS Open Data mirror**, which carries byte-identical
+files and measured ~1.3 MB/s on one stream and ~2.7 MB/s across six — roughly
+**65x** the direct host — and falls back to physionet.org if the mirror fails.
+Filenames and SHA1s come from the manifest bundled with MNE rather than guessed
+from the naming scheme, which is irregular (`SC4001E0`, `SC4001EC`, …). Every
+file is checksum-verified against that manifest, and files already present are
+skipped, so an interrupted run resumes.
+
+Omit `--subjects` to fetch all 78 subjects / 153 recordings.
 
 Preprocessing picks the Fpz-Cz channel, resamples to 100 Hz, merges scoring
 stages 3 and 4 into N3, and trims to ±30 min of wake around the sleep period —
