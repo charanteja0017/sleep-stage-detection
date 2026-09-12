@@ -117,6 +117,10 @@ def main():
         subject = int(re.search(r"SC4(\d{2})", rec_id).group(1)) if rec_id.startswith("SC4") else i
         out_path = os.path.join(args.out_dir, f"{rec_id}.npz")
         if os.path.exists(out_path):
+            # count cached files too, otherwise a rerun reports a class
+            # distribution covering only whatever it happened to redo
+            with np.load(out_path, allow_pickle=True) as cached:
+                total += np.bincount(cached["y"], minlength=5)
             print(f"[{i}/{len(pairs)}] {rec_id} exists, skipping")
             written += 1
             continue
