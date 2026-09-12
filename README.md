@@ -26,23 +26,31 @@ above, model prediction below.*
 |---|---|
 | Model, dataset, metrics, training loop | Working |
 | Sleep-EDF preprocessing | Verified against real PhysioNet data |
-| Regression tests (`tests/`) | 8 passing |
-| **Full 153-recording run** | **Done — see [RESULTS.md](RESULTS.md)** |
+| Regression tests (`tests/`) | 11 passing |
+| **Full 153-recording run** | **Done — both architectures** |
 
 Trained and evaluated on the complete Sleep-EDF Expanded sleep-cassette set:
 153 recordings, 78 subjects, 195,469 epochs, split 54/12/12 by subject.
 
-| metric | measured | reference target |
-|---|---|---|
-| Cohen's kappa | **0.6837** | 0.683 |
-| balanced accuracy | **0.7137** | 0.758 |
-| accuracy | 0.7639 | — |
-| macro F1 | 0.7015 | — |
+| model | balanced accuracy | Cohen's kappa | accuracy | macro F1 |
+|---|---|---|---|---|
+| `SleepResNet1D` — one epoch at a time, 2.47M params | 0.7137 | 0.6837 | 0.7639 | 0.7015 |
+| `SleepTransformer` — 21-epoch window, 3.01M params | **0.7488** | **0.7229** | **0.7930** | **0.7328** |
+| *reference target* | *0.758* | *0.683* | — | — |
 
-Kappa reproduces the target. Balanced accuracy lands 0.044 short, driven by N1
-(F1 0.373) — the rarest and most genuinely ambiguous stage, which mean-per-class
-recall penalises directly. Full breakdown, figures, confusion matrix, the imbalance ablation and the
+Adding self-attention across neighbouring epochs is worth **+0.039 kappa** and
+**+0.035 balanced accuracy**, and the gain is concentrated exactly where
+theory predicts: N1 **+0.073** and REM **+0.067** F1 — the two stages a single
+30 s window cannot disambiguate. N3, the one stage that is unmistakable on its
+own, is the only class that gets slightly worse (-0.022).
+
+The transformer clears the kappa target and closes the balanced-accuracy gap
+from 0.044 to 0.009. Full breakdown, figures, the imbalance ablation and the
 shuffled-label control are in [RESULTS.md](RESULTS.md).
+
+```bash
+python3 src/train.py --arch transformer --base-width 24 --seq-len 21 --batch-size 32
+```
 
 ## Setup
 

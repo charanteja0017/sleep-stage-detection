@@ -20,6 +20,62 @@ ambiguous stage drags it directly. Plausible causes not yet tested: longer train
 stopped at epoch 28, best at 20), or temporal context across neighbouring epochs,
 which this single-epoch model has none of.
 
+## Architecture comparison: does temporal context help?
+
+The ResNet scores each 30 s epoch alone. But N1 is *defined* as a transition
+stage, and a single epoch of it is genuinely ambiguous even to human scorers —
+so the obvious question is whether letting the model see neighbouring epochs
+helps, and whether it helps N1 specifically.
+
+`SleepTransformer` keeps a convolutional encoder for waveform features and adds
+self-attention across a window of **21 consecutive epochs** (~10.5 min of
+context), predicting all 21 at once. Same split, same seed, same class weighting.
+
+| | ResNet (single epoch) | Transformer (21-epoch window) | delta |
+|---|---|---|---|
+| parameters | 2,468,099 | 3,011,693 | +22% |
+| accuracy | 0.7639 | **0.7930** | +0.0291 |
+| balanced accuracy | 0.7137 | **0.7488** | +0.0351 |
+| Cohen's kappa | 0.6837 | **0.7229** | +0.0393 |
+| macro F1 | 0.7015 | **0.7328** | +0.0313 |
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/figures/arch-comparison-dark.png">
+  <img alt="Per-stage F1 for the ResNet against the transformer" src="docs/figures/arch-comparison.png" width="100%">
+</picture>
+
+**The gains land exactly where the hypothesis said they would.**
+
+| stage | ResNet | Transformer | delta | |
+|---|---|---|---|---|
+| W | 0.921 | 0.931 | +0.010 | already easy from one epoch |
+| N1 | 0.373 | 0.446 | +0.073 | **a transition stage — most to gain from context** |
+| N2 | 0.776 | 0.805 | +0.029 | spindles/K-complexes are local, but stage runs are long |
+| N3 | 0.716 | 0.693 | -0.022 | **the only regression** — slow waves are unmistakable in one epoch |
+| REM | 0.721 | 0.788 | +0.067 | **hard alone, easy in context** — position in the cycle identifies it |
+
+N1 (+0.073) and REM (+0.067) gain most — the two stages a single 30 s
+window cannot pin down. Both are low-amplitude, mixed-frequency and easily
+confused with each other in isolation; what separates them is *where they sit in
+the night*. N3 is the mirror image: slow waves are unmistakable in one epoch, it
+has nothing to gain from neighbours, and it loses 0.022 to the smaller
+convolutional encoder the transformer budget pays for.
+
+That pattern — large gains on the context-dependent stages, a small loss on the
+one stage that never needed context — is the signature of the mechanism actually
+working, rather than a model that is simply bigger.
+
+### Against the reference targets
+
+| metric | ResNet | Transformer | target |
+|---|---|---|---|
+| Cohen's kappa | 0.6837 | **0.7229** | 0.683 |
+| balanced accuracy | 0.7137 | **0.7488** | 0.758 |
+
+The transformer clears the kappa target by 0.040 and closes the balanced-accuracy
+gap from 0.044 to 0.009.
+
+
 ## A night, scored and predicted
 
 <picture>

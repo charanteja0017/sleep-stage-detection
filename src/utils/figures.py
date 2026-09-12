@@ -277,3 +277,49 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+def fig_arch_compare(rep_cnn, rep_tf, mode, out):
+    """Grouped per-stage F1, two architectures."""
+    t = style(mode)
+    c = [rep_cnn["test"]["per_class_f1"][k] for k in CLASS_NAMES]
+    f = [rep_tf["test"]["per_class_f1"][k] for k in CLASS_NAMES]
+
+    fig, ax = plt.subplots(figsize=(7.6, 3.9))
+    y = np.arange(5)[::-1].astype(float)
+    h = 0.32
+    for yi, v in zip(y, c):
+        rounded_bar(ax, 0, yi + 0.03, v, h, t["s1"], r=0.012)
+    for yi, v in zip(y, f):
+        rounded_bar(ax, 0, yi - 0.36, v, h, t["s2"], r=0.012)
+
+    for yi, a, b in zip(y, c, f):
+        ax.text(a + 0.014, yi + 0.19, f"{a:.3f}", va="center", ha="left",
+                color=t["secondary"], fontsize=8.5)
+        d = b - a
+        ax.text(b + 0.014, yi - 0.20, f"{b:.3f}  ({d:+.3f})", va="center", ha="left",
+                color=t["primary"] if d > 0 else t["muted"], fontsize=8.5,
+                fontweight="600" if abs(d) > 0.05 else "normal")
+
+    ax.set_yticks(y - 0.09, CLASS_NAMES)
+    ax.set_xlim(0, 1.12)
+    ax.set_ylim(-0.7, 4.6)
+    ax.set_xlabel("F1")
+    ax.set_title("Per-stage F1 — adding temporal context", loc="left", pad=34,
+                 color=t["primary"])
+    handles = [plt.Line2D([], [], color=t["s1"], linewidth=7,
+                          label="ResNet (single epoch)"),
+               plt.Line2D([], [], color=t["s2"], linewidth=7,
+                          label="Transformer (21-epoch window)")]
+    # above the axes: inside, it lands on the bottom row's bars and labels
+    ax.legend(handles=handles, frameon=False, labelcolor=t["secondary"],
+              fontsize=9, loc="lower left", bbox_to_anchor=(0, 1.02),
+              ncol=2, handlelength=1.2, columnspacing=1.6)
+    ax.xaxis.grid(True, linewidth=0.8)
+    ax.set_axisbelow(True)
+    ax.tick_params(length=0)
+    ax.spines["left"].set_color(t["axis"])
+    ax.spines["bottom"].set_visible(False)
+    fig.tight_layout()
+    fig.savefig(out, dpi=200, bbox_inches="tight")
+    plt.close(fig)
