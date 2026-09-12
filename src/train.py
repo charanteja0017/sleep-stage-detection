@@ -144,7 +144,10 @@ def main():
     ap.add_argument("--device", default="auto")
     ap.add_argument("--loss-weight-scheme", default="effective",
                     choices=["effective", "inverse", "sqrt_inverse", "none"])
-    ap.add_argument("--sampler-scheme", default="sqrt_inverse",
+    # Defaults to none: stacking a balanced sampler on top of the weighted loss
+    # corrects the imbalance twice. Measured over 30 subjects it cost 0.03 kappa
+    # for no balanced-accuracy gain. See RESULTS.md.
+    ap.add_argument("--sampler-scheme", default="none",
                     choices=["sqrt_inverse", "inverse", "none"])
     ap.add_argument("--patience", type=int, default=10)
     ap.add_argument("--no-amp", action="store_true")

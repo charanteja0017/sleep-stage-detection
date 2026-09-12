@@ -53,6 +53,22 @@ Same pipeline, labels shuffled. If this scored well, there would be leakage some
 
 It collapses to chance, as it must.
 
+## Imbalance handling: which correction to use
+
+Run over 30 subjects / 61 recordings, 15 epochs each. The question was whether a
+balanced sampler and a class-weighted loss should both be on — they correct the same
+skew, and stacking them boosts rare classes twice.
+
+| sampler | loss weighting | balanced acc | kappa | accuracy | macro F1 |
+|---|---|---|---|---|---|
+| `sqrt_inverse` | `effective` | 0.7254 | 0.7103 | 0.7826 | 0.7281 |
+| `none` | `effective` | **0.7215** | **0.7404** | 0.8093 | 0.7307 |
+| `sqrt_inverse` | `none` | 0.7210 | 0.7052 | 0.7790 | 0.7233 |
+
+Weighted loss alone wins: the same balanced accuracy as using both, with **+0.030
+kappa**. The sampler on top bought no extra rare-class recall and only cost agreement,
+so `--sampler-scheme` now defaults to `none`.
+
 ## Setup
 
 - 2,468,099 parameters
