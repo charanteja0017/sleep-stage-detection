@@ -18,6 +18,10 @@ data/processed/
 *.pt
 *.pth
 *.ckpt
-results/
 logs/
+
+# keep JSON run reports, drop checkpoints
+results/*
+!results/
+!results/*.json
 wandb/

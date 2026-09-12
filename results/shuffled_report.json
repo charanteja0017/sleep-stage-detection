@@ -1,0 +1,225 @@
+{
+  "args": {
+    "data_dir": "/private/tmp/claude-501/-Users-charantejapampana-Projects-Sleep-stage-detection/4635b7da-ad97-4143-887f-c5ffe4b8ae9a/scratchpad/shuf",
+    "out_dir": "/private/tmp/claude-501/-Users-charantejapampana-Projects-Sleep-stage-detection/4635b7da-ad97-4143-887f-c5ffe4b8ae9a/scratchpad/results",
+    "epochs": 4,
+    "batch_size": 64,
+    "lr": 0.003,
+    "weight_decay": 0.0001,
+    "base_width": 34,
+    "dropout": 0.1,
+    "num_workers": 0,
+    "seed": 42,
+    "device": "auto",
+    "loss_weight_scheme": "effective",
+    "sampler_scheme": "sqrt_inverse",
+    "patience": 10,
+    "no_amp": false,
+    "no_compile": true,
+    "tag": "shuffled"
+  },
+  "device": "mps",
+  "params": 2468099,
+  "data": {
+    "subjects": {
+      "train": 12,
+      "val": 2,
+      "test": 2
+    },
+    "recordings": {
+      "train": 24,
+      "val": 4,
+      "test": 4
+    },
+    "epochs": {
+      "train": 7200,
+      "val": 1200,
+      "test": 1200
+    },
+    "train_class_counts": [
+      1948,
+      738,
+      2556,
+      981,
+      977
+    ]
+  },
+  "best_val_balanced_accuracy": 0.2112261802699535,
+  "best_epoch": 3,
+  "test": {
+    "accuracy": 0.2683333333333333,
+    "balanced_accuracy": 0.19370265277828305,
+    "cohen_kappa": -0.009285309898295568,
+    "macro_f1": 0.130930478123732,
+    "per_class_f1": {
+      "W": 0.0,
+      "N1": 0.1003584229390681,
+      "N2": 0.4382530120481928,
+      "N3": 0.0,
+      "REM": 0.11604095563139932
+    },
+    "support": {
+      "W": 326,
+      "N1": 135,
+      "N2": 374,
+      "N3": 169,
+      "REM": 196
+    },
+    "confusion_matrix": [
+      [
+        0,
+        44,
+        253,
+        2,
+        27
+      ],
+      [
+        0,
+        14,
+        114,
+        2,
+        5
+      ],
+      [
+        0,
+        53,
+        291,
+        0,
+        30
+      ],
+      [
+        0,
+        14,
+        137,
+        0,
+        18
+      ],
+      [
+        0,
+        19,
+        159,
+        1,
+        17
+      ]
+    ],
+    "loss": 0.0
+  },
+  "history": [
+    {
+      "epoch": 1,
+      "train": {
+        "loss": 1.68575884614672,
+        "acc": 0.20200892857142858,
+        "seconds": 5.347826957702637
+      },
+      "val": {
+        "accuracy": 0.2625,
+        "balanced_accuracy": 0.21118544124218563,
+        "cohen_kappa": 0.009964677553326268,
+        "macro_f1": 0.20010459240453274,
+        "per_class_f1": {
+          "W": 0.2860576923076923,
+          "N1": 0.11981566820276497,
+          "N2": 0.3657957244655582,
+          "N3": 0.13654618473895583,
+          "REM": 0.09230769230769231
+        },
+        "support": {
+          "W": 276,
+          "N1": 123,
+          "N2": 453,
+          "N3": 140,
+          "REM": 208
+        },
+        "loss": 1.6378682533899942
+      }
+    },
+    {
+      "epoch": 2,
+      "train": {
+        "loss": 1.6316519879869051,
+        "acc": 0.20368303571428573,
+        "seconds": 5.137257814407349
+      },
+      "val": {
+        "accuracy": 0.15416666666666667,
+        "balanced_accuracy": 0.19737090145626732,
+        "cohen_kappa": -0.0023297171010781227,
+        "macro_f1": 0.09823595616692385,
+        "per_class_f1": {
+          "W": 0.0,
+          "N1": 0.13068181818181818,
+          "N2": 0.0,
+          "N3": 0.08256880733944955,
+          "REM": 0.2779291553133515
+        },
+        "support": {
+          "W": 276,
+          "N1": 123,
+          "N2": 453,
+          "N3": 140,
+          "REM": 208
+        },
+        "loss": 1.634277572631836
+      }
+    },
+    {
+      "epoch": 3,
+      "train": {
+        "loss": 1.6176833191088267,
+        "acc": 0.232421875,
+        "seconds": 5.111205101013184
+      },
+      "val": {
+        "accuracy": 0.3466666666666667,
+        "balanced_accuracy": 0.2112261802699535,
+        "cohen_kappa": 0.016862151700845235,
+        "macro_f1": 0.15179257663644533,
+        "per_class_f1": {
+          "W": 0.0,
+          "N1": 0.13846153846153847,
+          "N2": 0.530949105914718,
+          "N3": 0.0,
+          "REM": 0.08955223880597014
+        },
+        "support": {
+          "W": 276,
+          "N1": 123,
+          "N2": 453,
+          "N3": 140,
+          "REM": 208
+        },
+        "loss": 1.6080071862538656
+      }
+    },
+    {
+      "epoch": 4,
+      "train": {
+        "loss": 1.6132666308965002,
+        "acc": 0.2333984375,
+        "seconds": 5.110393047332764
+      },
+      "val": {
+        "accuracy": 0.2966666666666667,
+        "balanced_accuracy": 0.20816657293906876,
+        "cohen_kappa": 0.012053763472326734,
+        "macro_f1": 0.16846941430735388,
+        "per_class_f1": {
+          "W": 0.10582010582010581,
+          "N1": 0.1625615763546798,
+          "N2": 0.4854045037531276,
+          "N3": 0.0,
+          "REM": 0.08856088560885608
+        },
+        "support": {
+          "W": 276,
+          "N1": 123,
+          "N2": 453,
+          "N3": 140,
+          "REM": 208
+        },
+        "loss": 1.612531352043152
+      }
+    }
+  ]
+}

@@ -35,6 +35,12 @@ Target for the real-data run: ~75.8% balanced accuracy, ~0.683 Cohen's kappa
 across 153 recordings. Those are reference figures to reproduce, **not** numbers
 this repository has yet measured.
 
+**Measured so far — see [RESULTS.md](RESULTS.md).** A 30-recording / 16-subject
+subset reached 0.818 balanced accuracy and 0.814 kappa on test, but that split
+left only 2 subjects in validation and 2 in test, and validation kappa over the
+same run sat near 0.50. The gap means the test subjects were easy, not that the
+model is strong. Treat it as a pipeline check, not a result.
+
 ## Setup
 
 ```bash
