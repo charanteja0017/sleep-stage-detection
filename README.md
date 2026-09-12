@@ -66,13 +66,20 @@ If this run scores well, there is label leakage somewhere.
 
 ## Real data (Sleep-EDF Expanded)
 
-Download the sleep-cassette set (153 PSG/Hypnogram pairs) from
-PhysioNet into `data/raw/`, then:
+The sleep-cassette set is 153 PSG/Hypnogram pairs across 78 subjects (~7 GB).
 
 ```bash
+python3 src/preprocessing/download_sleep_edf.py --out-dir data/raw --subjects 20
 python3 src/preprocessing/prepare_sleep_edf.py --raw-dir data/raw --out-dir data/processed
 python3 src/train.py --epochs 40 --batch-size 128
 ```
+
+`download_sleep_edf.py` exists because PhysioNet serves a single connection at
+roughly 40 kB/s, which puts the full set at over a day via MNE's sequential
+fetcher. It pulls several files concurrently (measured ~4x faster at 6-8
+streams), takes filenames and SHA1s from the manifest bundled with MNE, verifies
+every checksum, and skips files already present — so an interrupted run resumes.
+Drop `--subjects` to fetch all 78.
 
 Preprocessing picks the Fpz-Cz channel, resamples to 100 Hz, merges scoring
 stages 3 and 4 into N3, and trims to ±30 min of wake around the sleep period —
