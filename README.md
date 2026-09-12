@@ -18,18 +18,18 @@ using a compact 1D residual network in PyTorch with MNE-based preprocessing.
 |---|---|
 | Model, dataset, metrics, training loop | Working, run end-to-end |
 | Pipeline validation on synthetic data | Passing, incl. shuffled-label negative control |
-| Sleep-EDF preprocessing (`prepare_sleep_edf.py`) | Verified on generated EDF files (exact round-trip) |
+| Sleep-EDF preprocessing (`prepare_sleep_edf.py`) | Verified on a real PhysioNet recording |
 | Full chain: `.edf` → preprocess → train → evaluate | Working |
-| Results on **real PhysioNet** recordings | **Not yet produced** |
+| Regression tests (`tests/`) | 6 passing |
+| Trained results on the full 153-recording set | **Not yet produced** |
 
-Preprocessing was checked by writing real EDF/EDF+ files in Sleep-EDF's format
-and reading them back through the script: stage labels came back identical and
-the EEG signal to within 0.003 µV (EDF's 16-bit quantisation floor). Subject
-grouping was confirmed to pair both nights of each subject.
-
-What that does *not* cover is the quirks of genuine PhysioNet files — channel
-naming variations, irregular annotation spans, `Movement time` / `Sleep stage ?`
-scores. Those need the real download.
+Preprocessing is checked against genuine PhysioNet data (subject SC4001, a
+22.1 h recording). Cross-checked independently against the raw annotations:
+all 653 non-wake epochs are preserved exactly, wake is trimmed 1997 → 188
+epochs by the ±30 min crop, and amplitudes land where scalp EEG should
+(median 19 µV per epoch). N3 epochs have mean std 32.1 µV against N1's
+11.6 µV — deep-sleep slow waves showing through, which is the expected
+physiological ordering.
 
 Target for the real-data run: ~75.8% balanced accuracy, ~0.683 Cohen's kappa
 across 153 recordings. Those are reference figures to reproduce, **not** numbers
@@ -116,6 +116,19 @@ src/
 ├── utils/synthetic.py              # synthetic data for pipeline checks
 └── train.py                        # training / eval entry point
 ```
+
+## Tests
+
+```bash
+python3 tests/test_pipeline.py     # or: python3 -m pytest tests/ -q
+```
+
+Six regression tests, each pinned to a bug that actually occurred and each
+verified to fail against the original code — a test that cannot fail is not a
+test. They cover the stage-3/4 event-code collision, exclusion of unscored
+annotations, float32 preservation through normalisation, and three metric
+properties including that constant-majority prediction scores exactly 0.200
+balanced accuracy while plain accuracy reads a flattering 0.42.
 
 ## Metrics
 

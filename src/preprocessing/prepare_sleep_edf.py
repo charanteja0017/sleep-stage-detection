@@ -70,9 +70,15 @@ def load_recording(psg_path, hypno_path, channel="EEG Fpz-Cz", crop_wake_min=30)
         tmax = min(raw.times[-1], sleep[-1]["onset"] + sleep[-1]["duration"] - raw.first_time + pad)
         raw.crop(tmin=max(0.0, tmin), tmax=tmax, verbose="ERROR")
 
+    # MNE requires unique event codes, but scoring stages 3 and 4 both map to
+    # N3. Give every description its own code and merge only after epoching.
+    desc_to_code = {d: i + 1 for i, d in enumerate(STAGE_MAP)}
+    code_to_class = {i + 1: STAGE_MAP[d] for i, d in enumerate(STAGE_MAP)}
+
+    # chunk_duration splits the long single annotations real hypnograms use
+    # (one span can cover hours of wake) into individual 30 s epochs.
     events, event_id = mne.events_from_annotations(
-        raw, event_id={k: v + 1 for k, v in STAGE_MAP.items()},
-        chunk_duration=EPOCH_SEC, verbose="ERROR",
+        raw, event_id=desc_to_code, chunk_duration=EPOCH_SEC, verbose="ERROR",
     )
     epochs = mne.Epochs(
         raw, events, event_id=event_id, tmin=0.0,
@@ -80,7 +86,7 @@ def load_recording(psg_path, hypno_path, channel="EEG Fpz-Cz", crop_wake_min=30)
     )
 
     x = epochs.get_data(copy=True)[:, 0, :].astype(np.float32)
-    y = (epochs.events[:, 2] - 1).astype(np.int64)
+    y = np.array([code_to_class[c] for c in epochs.events[:, 2]], dtype=np.int64)
 
     if x.shape[1] != EPOCH_LEN:
         x = x[:, :EPOCH_LEN]
