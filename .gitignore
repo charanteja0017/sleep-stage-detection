@@ -1,0 +1,23 @@
+__pycache__/
+*.py[cod]
+*.so
+.Python
+venv/
+env/
+.venv/
+.ipynb_checkpoints/
+.DS_Store
+.vscode/
+.idea/
+
+# data & artifacts - large binaries, keep out of git
+data/raw/
+data/processed/
+*.edf
+*.npz
+*.pt
+*.pth
+*.ckpt
+results/
+logs/
+wandb/
