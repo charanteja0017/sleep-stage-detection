@@ -16,30 +16,25 @@ using a compact 1D residual network in PyTorch with MNE-based preprocessing.
 
 | Component | State |
 |---|---|
-| Model, dataset, metrics, training loop | Working, run end-to-end |
-| Pipeline validation on synthetic data | Passing, incl. shuffled-label negative control |
-| Sleep-EDF preprocessing (`prepare_sleep_edf.py`) | Verified on a real PhysioNet recording |
-| Full chain: `.edf` → preprocess → train → evaluate | Working |
-| Regression tests (`tests/`) | 6 passing |
-| Trained results on the full 153-recording set | **Not yet produced** |
+| Model, dataset, metrics, training loop | Working |
+| Sleep-EDF preprocessing | Verified against real PhysioNet data |
+| Regression tests (`tests/`) | 8 passing |
+| **Full 153-recording run** | **Done — see [RESULTS.md](RESULTS.md)** |
 
-Preprocessing is checked against genuine PhysioNet data (subject SC4001, a
-22.1 h recording). Cross-checked independently against the raw annotations:
-all 653 non-wake epochs are preserved exactly, wake is trimmed 1997 → 188
-epochs by the ±30 min crop, and amplitudes land where scalp EEG should
-(median 19 µV per epoch). N3 epochs have mean std 32.1 µV against N1's
-11.6 µV — deep-sleep slow waves showing through, which is the expected
-physiological ordering.
+Trained and evaluated on the complete Sleep-EDF Expanded sleep-cassette set:
+153 recordings, 78 subjects, 195,469 epochs, split 54/12/12 by subject.
 
-Target for the real-data run: ~75.8% balanced accuracy, ~0.683 Cohen's kappa
-across 153 recordings. Those are reference figures to reproduce, **not** numbers
-this repository has yet measured.
+| metric | measured | reference target |
+|---|---|---|
+| Cohen's kappa | **0.6837** | 0.683 |
+| balanced accuracy | **0.7137** | 0.758 |
+| accuracy | 0.7639 | — |
+| macro F1 | 0.7015 | — |
 
-**Measured so far — see [RESULTS.md](RESULTS.md).** A 30-recording / 16-subject
-subset reached 0.818 balanced accuracy and 0.814 kappa on test, but that split
-left only 2 subjects in validation and 2 in test, and validation kappa over the
-same run sat near 0.50. The gap means the test subjects were easy, not that the
-model is strong. Treat it as a pipeline check, not a result.
+Kappa reproduces the target. Balanced accuracy lands 0.044 short, driven by N1
+(F1 0.373) — the rarest and most genuinely ambiguous stage, which mean-per-class
+recall penalises directly. Full breakdown, confusion matrix, the imbalance
+ablation and the shuffled-label control are in [RESULTS.md](RESULTS.md).
 
 ## Setup
 
