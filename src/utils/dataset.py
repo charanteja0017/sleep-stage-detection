@@ -150,3 +150,93 @@ def make_loaders(processed_dir, batch_size=128, num_workers=4, seed=42,
         "train_class_counts": train.class_counts().tolist(),
     }
     return train_loader, val_loader, test_loader, meta
+
+
+class SleepSequenceDataset(Dataset):
+    """Windows of L consecutive epochs, for sequence models.
+
+    Windows never cross a recording boundary - a night's last epoch and the next
+    night's first are not neighbours. Where a recording does not divide evenly by
+    the stride the final window is padded and those positions are labelled -1, so
+    the loss and the metrics can drop them rather than scoring invented epochs.
+    """
+
+    PAD = -1
+
+    def __init__(self, records, seq_len=21, stride=None, normalize=True,
+                 clip_uv=500.0, augment=False):
+        self.seq_len = seq_len
+        self.stride = stride or seq_len
+        self.augment = augment
+
+        base = SleepEpochDataset(records, normalize=normalize, clip_uv=clip_uv,
+                                 augment=False)
+        self.x, self.y, self.subjects = base.x, base.y, base.subjects
+
+        bounds, at = [], 0
+        for path in records:
+            with np.load(path, allow_pickle=True) as d:
+                n = int(d["y"].shape[0])
+            bounds.append((at, at + n))
+            at += n
+        self.bounds = bounds
+
+        self.windows = []
+        for start, end in bounds:
+            n = end - start
+            if n == 0:
+                continue
+            pos = 0
+            while pos < n:
+                self.windows.append((start + pos, min(seq_len, n - pos)))
+                pos += self.stride
+
+    def __len__(self):
+        return len(self.windows)
+
+    def __getitem__(self, i):
+        start, valid = self.windows[i]
+        L = self.seq_len
+        xs = np.zeros((L, self.x.shape[1]), dtype=np.float32)
+        ys = np.full(L, self.PAD, dtype=np.int64)
+        xs[:valid] = self.x[start:start + valid]
+        ys[:valid] = self.y[start:start + valid]
+
+        if self.augment:
+            if np.random.rand() < 0.5:
+                xs[:valid] *= np.float32(np.random.uniform(0.8, 1.2))
+            if np.random.rand() < 0.3:
+                xs[:valid] = np.roll(xs[:valid], np.random.randint(-300, 300), axis=1)
+
+        return torch.from_numpy(xs), torch.from_numpy(ys)
+
+    def class_counts(self):
+        return np.bincount(self.y, minlength=NUM_CLASSES)
+
+
+def make_sequence_loaders(processed_dir, seq_len=21, batch_size=32, num_workers=0,
+                          seed=42, train_stride=None, augment=True):
+    """Same subject-wise split as make_loaders, windowed for a sequence model."""
+    tr_f, va_f, te_f, subj_counts = split_by_subject(processed_dir, seed=seed)
+
+    train = SleepSequenceDataset(tr_f, seq_len=seq_len, stride=train_stride,
+                                 augment=augment)
+    val = SleepSequenceDataset(va_f, seq_len=seq_len)
+    test = SleepSequenceDataset(te_f, seq_len=seq_len)
+
+    common = dict(num_workers=num_workers, pin_memory=torch.cuda.is_available(),
+                  persistent_workers=num_workers > 0)
+    train_loader = DataLoader(train, batch_size=batch_size, shuffle=True,
+                              drop_last=True, **common)
+    val_loader = DataLoader(val, batch_size=batch_size * 2, shuffle=False, **common)
+    test_loader = DataLoader(test, batch_size=batch_size * 2, shuffle=False, **common)
+
+    meta = {
+        "subjects": dict(zip(["train", "val", "test"], subj_counts)),
+        "recordings": {"train": len(tr_f), "val": len(va_f), "test": len(te_f)},
+        "epochs": {"train": len(train.y), "val": len(val.y), "test": len(test.y)},
+        "windows": {"train": len(train), "val": len(val), "test": len(test)},
+        "train_class_counts": train.class_counts().tolist(),
+        "seq_len": seq_len,
+    }
+    return train_loader, val_loader, test_loader, meta

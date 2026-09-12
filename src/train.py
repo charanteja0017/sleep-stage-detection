@@ -12,7 +12,8 @@ import torch.nn as nn
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from models.sleep_resnet import SleepResNet1D, count_parameters
-from utils.dataset import make_loaders, class_weights, CLASS_NAMES
+from models.sleep_transformer import SleepTransformer
+from utils.dataset import make_loaders, make_sequence_loaders, class_weights, CLASS_NAMES
 from utils.metrics import summarize, format_report
 
 
@@ -20,6 +21,19 @@ def use_non_blocking(device):
     """Async H2D copies are only safe (and only help) with pinned memory on CUDA.
     On MPS a non_blocking copy can be read before it lands, yielding garbage."""
     return device.type == "cuda"
+
+
+def flatten_sequence(logits, y, y_cpu=None):
+    """(B, L, C) -> (N, C), dropping padded positions (label -1)."""
+    if logits.dim() != 3:
+        return logits, y, y_cpu
+    logits = logits.reshape(-1, logits.size(-1))
+    y = y.reshape(-1)
+    keep = y >= 0
+    if y_cpu is not None:
+        y_cpu = y_cpu.reshape(-1)
+        y_cpu = y_cpu[y_cpu >= 0]
+    return logits[keep], y[keep], y_cpu
 
 
 def pick_device(requested="auto"):
@@ -79,6 +93,7 @@ def evaluate(model, loader, device, ac_kwargs, criterion=None):
         y = y.to(device, non_blocking=nb)
         with torch.autocast(**ac_kwargs):
             logits = model(x)
+            logits, y, y_cpu = flatten_sequence(logits, y, y_cpu)
             if criterion is not None:
                 loss_sum += criterion(logits, y).item() * y.size(0)
         preds.append(logits.float().argmax(1).cpu().numpy().copy())
@@ -102,6 +117,7 @@ def train_one_epoch(model, loader, optimizer, scheduler, criterion, device,
         optimizer.zero_grad(set_to_none=True)
         with torch.autocast(**ac_kwargs):
             logits = model(x)
+            logits, y, _ = flatten_sequence(logits, y)
             loss = criterion(logits, y)
 
         if scaler is not None:
@@ -137,7 +153,13 @@ def main():
     ap.add_argument("--batch-size", type=int, default=128)
     ap.add_argument("--lr", type=float, default=3e-3)
     ap.add_argument("--weight-decay", type=float, default=1e-4)
+    ap.add_argument("--arch", default="cnn", choices=["cnn", "transformer"])
     ap.add_argument("--base-width", type=int, default=34)
+    ap.add_argument("--seq-len", type=int, default=21,
+                    help="epochs per window (transformer only)")
+    ap.add_argument("--d-model", type=int, default=192)
+    ap.add_argument("--layers", type=int, default=4)
+    ap.add_argument("--nhead", type=int, default=6)
     ap.add_argument("--dropout", type=float, default=0.1)
     ap.add_argument("--num-workers", type=int, default=4)
     ap.add_argument("--seed", type=int, default=42)
@@ -166,16 +188,31 @@ def main():
     print(f"device: {device} | amp: {ac_kwargs.get('enabled', False)} "
           f"({ac_kwargs.get('dtype', 'fp32')}) | scaler: {scaler is not None}")
 
-    train_loader, val_loader, test_loader, meta = make_loaders(
-        args.data_dir, batch_size=args.batch_size, num_workers=args.num_workers,
-        seed=args.seed, sampler_scheme=None if args.sampler_scheme == "none" else args.sampler_scheme,
-    )
+    if args.arch == "transformer":
+        # a balanced sampler cannot apply here: windows are contiguous runs of
+        # epochs, so individual epochs are not independently resampleable
+        train_loader, val_loader, test_loader, meta = make_sequence_loaders(
+            args.data_dir, seq_len=args.seq_len, batch_size=args.batch_size,
+            num_workers=args.num_workers, seed=args.seed,
+        )
+    else:
+        train_loader, val_loader, test_loader, meta = make_loaders(
+            args.data_dir, batch_size=args.batch_size, num_workers=args.num_workers,
+            seed=args.seed,
+            sampler_scheme=None if args.sampler_scheme == "none" else args.sampler_scheme,
+        )
     print("data:", json.dumps(meta, indent=2))
 
-    model = SleepResNet1D(num_classes=5, base_width=args.base_width,
-                          dropout=args.dropout).to(device)
+    if args.arch == "transformer":
+        model = SleepTransformer(num_classes=5, base_width=args.base_width,
+                                 d_model=args.d_model, nhead=args.nhead,
+                                 num_layers=args.layers, dropout=args.dropout,
+                                 seq_len=args.seq_len).to(device)
+    else:
+        model = SleepResNet1D(num_classes=5, base_width=args.base_width,
+                              dropout=args.dropout).to(device)
     n_params = count_parameters(model)
-    print(f"model: SleepResNet1D  params {n_params:,}")
+    print(f"model: {type(model).__name__}  params {n_params:,}")
 
     # torch.compile only pays off on CUDA. Measured on this MPS box it was ~50x
     # slower and the model failed to leave chance accuracy, so it is opt-in there.

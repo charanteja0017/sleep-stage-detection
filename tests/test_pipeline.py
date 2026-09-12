@@ -86,6 +86,83 @@ def test_split_is_disjoint_by_subject():
         assert counts == (len(s_tr), len(s_va), len(s_te))
 
 
+def test_sequence_windows_respect_recording_boundaries():
+    """A window must never span two recordings - the last epoch of one night and
+    the first of the next are not neighbours, and letting attention join them
+    would invent temporal context that does not exist.
+    """
+    import tempfile
+
+    from utils.dataset import SleepSequenceDataset
+
+    L = 21
+    with tempfile.TemporaryDirectory() as d:
+        files, lengths = [], [50, 21, 13, 64]
+        for i, n in enumerate(lengths):
+            p_ = os.path.join(d, f"SC4{i:02d}1.npz")
+            np.savez(p_, x=np.random.randn(n, 3000).astype(np.float32),
+                     y=(np.arange(n) % 5), subject=i, rec_id=f"SC4{i:02d}1")
+            files.append(p_)
+
+        ds = SleepSequenceDataset(files, seq_len=L)
+
+        for start, valid in ds.windows:
+            rec = [b for b in ds.bounds if b[0] <= start < b[1]]
+            assert len(rec) == 1
+            assert start + valid <= rec[0][1], "window crossed a recording boundary"
+
+        # every real epoch appears exactly once, in order
+        seen = []
+        for i in range(len(ds)):
+            _, y = ds[i]
+            y = y.numpy()
+            seen.append(y[y != SleepSequenceDataset.PAD])
+        assert np.array_equal(np.concatenate(seen), ds.y)
+
+
+def test_sequence_padding_is_masked():
+    """Short tails are padded; those positions must carry the ignore label so the
+    loss and metrics never score an invented epoch."""
+    import tempfile
+
+    from utils.dataset import SleepSequenceDataset
+
+    L = 21
+    with tempfile.TemporaryDirectory() as d:
+        n = 25                                    # one full window + a 4-epoch tail
+        p_ = os.path.join(d, "SC4001.npz")
+        np.savez(p_, x=np.random.randn(n, 3000).astype(np.float32),
+                 y=(np.arange(n) % 5), subject=0, rec_id="SC4001")
+        ds = SleepSequenceDataset([p_], seq_len=L)
+
+        assert len(ds) == 2
+        x, y = ds[1]
+        assert int((y != SleepSequenceDataset.PAD).sum()) == 4
+        assert int((y == SleepSequenceDataset.PAD).sum()) == L - 4
+        assert bool((x[y == SleepSequenceDataset.PAD] == 0).all())
+
+
+def test_flatten_sequence_drops_padding():
+    """The training loop's masking must remove exactly the padded positions."""
+    import torch
+
+    from train import flatten_sequence
+
+    logits = torch.randn(2, 5, 5)
+    y = torch.tensor([[0, 1, 2, -1, -1], [3, 4, -1, -1, -1]])
+    y_cpu = y.numpy().copy()
+    fl, fy, fcpu = flatten_sequence(logits, y, y_cpu)
+    assert fl.shape == (5, 5)
+    assert fy.tolist() == [0, 1, 2, 3, 4]
+    assert fcpu.tolist() == [0, 1, 2, 3, 4]
+
+    # a non-sequence model's output passes through untouched
+    flat = torch.randn(4, 5)
+    ly = torch.tensor([0, 1, 2, 3])
+    a, b, _ = flatten_sequence(flat, ly)
+    assert a.shape == (4, 5) and b.tolist() == [0, 1, 2, 3]
+
+
 def test_metrics_detect_failure():
     """A metric that cannot fail is worthless - pin the degenerate cases."""
     rng = np.random.default_rng(0)
