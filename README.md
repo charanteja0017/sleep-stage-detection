@@ -3,6 +3,14 @@
 Five-class sleep staging (W / N1 / N2 / N3 / REM) from single-channel EEG,
 using a compact 1D residual network in PyTorch with MNE-based preprocessing.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/figures/hypnogram-dark.png">
+  <img alt="Hypnogram: technician scoring vs model prediction for a held-out night" src="docs/figures/hypnogram.png" width="100%">
+</picture>
+
+*A held-out night (SC4412, the median test recording by agreement): technician scoring
+above, model prediction below.*
+
 ## Model
 
 `SleepResNet1D` — **2,468,099 parameters** (verified: `python3 src/models/sleep_resnet.py`)
@@ -33,8 +41,8 @@ Trained and evaluated on the complete Sleep-EDF Expanded sleep-cassette set:
 
 Kappa reproduces the target. Balanced accuracy lands 0.044 short, driven by N1
 (F1 0.373) — the rarest and most genuinely ambiguous stage, which mean-per-class
-recall penalises directly. Full breakdown, confusion matrix, the imbalance
-ablation and the shuffled-label control are in [RESULTS.md](RESULTS.md).
+recall penalises directly. Full breakdown, figures, confusion matrix, the imbalance ablation and the
+shuffled-label control are in [RESULTS.md](RESULTS.md).
 
 ## Setup
 

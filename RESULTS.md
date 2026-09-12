@@ -20,6 +20,19 @@ ambiguous stage drags it directly. Plausible causes not yet tested: longer train
 stopped at epoch 28, best at 20), or temporal context across neighbouring epochs,
 which this single-epoch model has none of.
 
+## A night, scored and predicted
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/figures/hypnogram-dark.png">
+  <img alt="Hypnogram for test recording SC4412: technician scoring above, model prediction below, disagreement ribbon at the bottom" src="docs/figures/hypnogram.png" width="100%">
+</picture>
+
+Test recording SC4412, the **median** of the 24 test recordings by epoch agreement
+(the spread is 54.5% to 88.1%) — not the best one. The model recovers the night's
+architecture: the early descent into N3, the REM periods lengthening toward morning,
+and the wake at both ends. Disagreement clusters at stage transitions, which is also
+where human scorers disagree with each other.
+
 ## Per stage (test)
 
 | stage | F1 | support |
@@ -35,7 +48,17 @@ stage human scorers themselves disagree on. The confusion structure below is phy
 coherent: N1 scatters into W, N2 and REM; REM is taken for N1 and N2; N3 is confused almost
 only with N2, never with wake.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/figures/per-class-f1-dark.png">
+  <img alt="Per-stage F1: W 0.921, N1 0.373, N2 0.776, N3 0.716, REM 0.721" src="docs/figures/per-class-f1.png" width="100%">
+</picture>
+
 ### Confusion matrix (rows = true, cols = predicted)
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/figures/confusion-matrix-dark.png">
+  <img alt="Confusion matrix, row-normalised" src="docs/figures/confusion-matrix.png" width="100%">
+</picture>
 
 | | W | N1 | N2 | N3 | REM |
 |---|---|---|---|---|---|
@@ -65,6 +88,20 @@ Identical pipeline, labels shuffled. If this scored above chance there would be 
 
 - balanced accuracy **0.194** (chance 0.200)
 - Cohen's kappa **-0.009** (chance 0.000)
+
+## Training
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/figures/training-curves-dark.png">
+  <img alt="Left: train and validation loss. Right: validation balanced accuracy and kappa by epoch." src="docs/figures/training-curves.png" width="100%">
+</picture>
+
+Validation loss bottoms around epoch 11 and climbs steadily after — the model is
+overfitting by any loss reading. Balanced accuracy and kappa nonetheless keep edging
+up to epoch 20, which is where the checkpoint was taken. The two are not in conflict:
+the network grows overconfident on epochs it already gets wrong (hurting cross-entropy)
+while its argmax decisions still improve slightly. Selecting on loss would have stopped
+at epoch 11 and given up that gain.
 
 ## Setup
 
