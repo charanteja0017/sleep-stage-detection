@@ -123,10 +123,11 @@ def main():
         counts = np.bincount(y, minlength=5)
         total += counts
         written += 1
-        print(f"[{i}/{len(pairs)}] {rec_id} subj={subject} epochs={len(y)} {dict(zip(CLASS_NAMES, counts))}")
+        print(f"[{i}/{len(pairs)}] {rec_id} subj={subject} epochs={len(y)} "
+              + str({c: int(v) for c, v in zip(CLASS_NAMES, counts)}))
 
     print(f"\nwrote {written} files to {args.out_dir}")
-    print("class totals:", dict(zip(CLASS_NAMES, total)))
+    print("class totals:", {c: int(v) for c, v in zip(CLASS_NAMES, total)})
 
 
 if __name__ == "__main__":

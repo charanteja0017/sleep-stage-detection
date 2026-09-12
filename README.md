@@ -18,8 +18,18 @@ using a compact 1D residual network in PyTorch with MNE-based preprocessing.
 |---|---|
 | Model, dataset, metrics, training loop | Working, run end-to-end |
 | Pipeline validation on synthetic data | Passing, incl. shuffled-label negative control |
-| Sleep-EDF preprocessing (`prepare_sleep_edf.py`) | **Written but not yet run — MNE is not installed** |
-| Results on real Sleep-EDF recordings | **Not yet produced** |
+| Sleep-EDF preprocessing (`prepare_sleep_edf.py`) | Verified on generated EDF files (exact round-trip) |
+| Full chain: `.edf` → preprocess → train → evaluate | Working |
+| Results on **real PhysioNet** recordings | **Not yet produced** |
+
+Preprocessing was checked by writing real EDF/EDF+ files in Sleep-EDF's format
+and reading them back through the script: stage labels came back identical and
+the EEG signal to within 0.003 µV (EDF's 16-bit quantisation floor). Subject
+grouping was confirmed to pair both nights of each subject.
+
+What that does *not* cover is the quirks of genuine PhysioNet files — channel
+naming variations, irregular annotation spans, `Movement time` / `Sleep stage ?`
+scores. Those need the real download.
 
 Target for the real-data run: ~75.8% balanced accuracy, ~0.683 Cohen's kappa
 across 153 recordings. Those are reference figures to reproduce, **not** numbers
