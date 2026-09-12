@@ -16,23 +16,35 @@ class SleepEpochDataset(Dataset):
         self.clip_uv = clip_uv
         self.augment = augment
 
-        xs, ys, subs = [], [], []
+        # Size everything up front and fill a preallocated array. Concatenating
+        # a list of per-recording arrays instead would hold both copies at once,
+        # which is ~3.7 GB at the full 153-recording scale.
+        lengths, width = [], None
         for path in records:
-            d = np.load(path, allow_pickle=True)
-            x = d["x"].astype(np.float32)
-            if normalize:
-                # per-recording robust scaling; sleep EEG amplitude varies a lot
-                # between subjects and electrode impedances.
-                med = np.float32(np.median(x))
-                iqr = np.float32(np.subtract(*np.percentile(x, [75, 25])))
-                x = ((x - med) / (iqr + np.float32(1e-6))).astype(np.float32, copy=False)
-            xs.append(x)
-            ys.append(d["y"].astype(np.int64))
-            subs.append(np.full(len(d["y"]), int(d["subject"]), dtype=np.int64))
+            with np.load(path, allow_pickle=True) as d:
+                lengths.append(int(d["y"].shape[0]))
+                if width is None:
+                    width = int(d["x"].shape[1])
+        total = sum(lengths)
 
-        self.x = np.concatenate(xs)
-        self.y = np.concatenate(ys)
-        self.subjects = np.concatenate(subs)
+        self.x = np.empty((total, width), dtype=np.float32)
+        self.y = np.empty(total, dtype=np.int64)
+        self.subjects = np.empty(total, dtype=np.int64)
+
+        at = 0
+        for path, n in zip(records, lengths):
+            with np.load(path, allow_pickle=True) as d:
+                x = d["x"].astype(np.float32, copy=False)
+                if normalize:
+                    # per-recording robust scaling; sleep EEG amplitude varies a
+                    # lot between subjects and electrode impedances.
+                    med = np.float32(np.median(x))
+                    iqr = np.float32(np.subtract(*np.percentile(x, [75, 25])))
+                    x = (x - med) / (iqr + np.float32(1e-6))
+                self.x[at:at + n] = x
+                self.y[at:at + n] = d["y"]
+                self.subjects[at:at + n] = int(d["subject"])
+            at += n
 
         if clip_uv:
             np.clip(self.x, -clip_uv, clip_uv, out=self.x)
